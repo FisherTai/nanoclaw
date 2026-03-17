@@ -410,6 +410,7 @@ async function runQuery(
         'mcp__nanoclaw__*'
       ],
       env: sdkEnv,
+      model: process.env.CLAUDE_CODE_USE_MODEL || undefined,
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       settingSources: ['project', 'user'],
