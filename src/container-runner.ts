@@ -571,17 +571,30 @@ export async function runContainerAgent(
 
       // Streaming mode: wait for output chain to settle, return completion marker
       if (onOutput) {
-        outputChain.then(() => {
-          logger.info(
-            { group: group.name, duration, newSessionId },
-            'Container completed (streaming mode)',
-          );
-          resolve({
-            status: 'success',
-            result: null,
-            newSessionId,
+        outputChain
+          .then(() => {
+            logger.info(
+              { group: group.name, duration, newSessionId },
+              'Container completed (streaming mode)',
+            );
+            resolve({
+              status: 'success',
+              result: null,
+              newSessionId,
+            });
+          })
+          .catch((err) => {
+            logger.error(
+              { group: group.name, error: err },
+              'Output chain failed during streaming',
+            );
+            resolve({
+              status: 'error',
+              result: null,
+              error: `Output chain error: ${err}`,
+              newSessionId,
+            });
           });
-        });
         return;
       }
 
