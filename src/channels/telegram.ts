@@ -218,15 +218,14 @@ export class TelegramChannel implements Channel {
         const filePath = path.join(attachDir, filename);
 
         const fileData = await fetch(fileUrl);
-        if (!fileData.ok) throw new Error(`Download failed: ${fileData.status}`);
+        if (!fileData.ok)
+          throw new Error(`Download failed: ${fileData.status}`);
         const buffer = Buffer.from(await fileData.arrayBuffer());
         fs.writeFileSync(filePath, buffer);
 
         // Container sees this at /workspace/group/attachments/
         const containerPath = `/workspace/group/attachments/${filename}`;
-        const caption = ctx.message.caption
-          ? ` ${ctx.message.caption}`
-          : '';
+        const caption = ctx.message.caption ? ` ${ctx.message.caption}` : '';
 
         const timestamp = new Date(ctx.message.date * 1000).toISOString();
         const senderName =
