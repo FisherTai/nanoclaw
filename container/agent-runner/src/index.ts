@@ -426,7 +426,7 @@ async function runQuery(
           },
         },
         gmail: {
-          command: 'server-gmail-autoauth-mcp',
+          command: 'gmail-mcp',
           args: [],
         },
       },

@@ -4,6 +4,7 @@ import path from 'path';
 import {
   ASSISTANT_NAME,
   CREDENTIAL_PROXY_PORT,
+  DATA_DIR,
   IDLE_TIMEOUT,
   POLL_INTERVAL,
   TIMEZONE,
@@ -274,7 +275,41 @@ async function runAgent(
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<'success' | 'error'> {
   const isMain = group.isMain === true;
-  const sessionId = sessions[group.folder];
+  let sessionId: string | undefined = sessions[group.folder];
+
+  // Check if the session file is too large (>2MB). If so, the SDK will return
+  // "Prompt is too long" and the container will hang. Clear it proactively.
+  if (sessionId) {
+    const sessionFile = path.join(
+      DATA_DIR,
+      'sessions',
+      group.folder,
+      '.claude',
+      'projects',
+      '-workspace-group',
+      `${sessionId}.jsonl`,
+    );
+    try {
+      const stat = fs.statSync(sessionFile);
+      if (stat.size > 2_000_000) {
+        logger.warn(
+          { group: group.name, sessionId, sizeBytes: stat.size },
+          'Session file too large, starting fresh to avoid prompt-too-long',
+        );
+        fs.unlinkSync(sessionFile);
+        // Also remove the session directory if it exists
+        const sessionDir = sessionFile.replace('.jsonl', '');
+        if (fs.existsSync(sessionDir)) {
+          fs.rmSync(sessionDir, { recursive: true });
+        }
+        delete sessions[group.folder];
+        setSession(group.folder, '');
+        sessionId = undefined;
+      }
+    } catch {
+      // File doesn't exist or can't be read — proceed normally
+    }
+  }
 
   // Update tasks snapshot for container to read (filtered by group)
   const tasks = getAllTasks();
@@ -539,8 +574,15 @@ async function main(): Promise<void> {
       );
       continue;
     }
-    channels.push(channel);
-    await channel.connect();
+    try {
+      await channel.connect();
+      channels.push(channel);
+    } catch (err) {
+      logger.error(
+        { channel: channelName, err },
+        'Channel failed to connect — skipping. Fix credentials and restart.',
+      );
+    }
   }
   if (channels.length === 0) {
     logger.fatal('No channels connected');
